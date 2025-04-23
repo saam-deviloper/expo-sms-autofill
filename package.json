@@ -30,10 +30,10 @@
   "homepage": "https://github.com/saam-deviloper/expo-sms#readme",
   "dependencies": {},
   "devDependencies": {
-    "@types/react": "~18.3.12",
+    "@types/react": "~18.2.7",
     "expo-module-scripts": "^4.0.4",
-    "expo": "~52.0.0",
-    "react-native": "0.76.0"
+    "expo": "~49.0.0",
+    "react-native": "0.72.4"
   },
   "peerDependencies": {
     "expo": "*",
