@@ -1,50 +1,56 @@
 package expo.modules.sms
 
-import expo.modules.kotlin.modules.Module
-import expo.modules.kotlin.modules.ModuleDefinition
-import java.net.URL
+import android.content.*
+import android.os.Bundle
+import android.util.Log
+import com.facebook.react.bridge.*
+import expo.modules.kotlin.modules.*
+import expo.modules.kotlin.types.*
+import android.app.Activity
+import android.app.PendingIntent
+import com.google.android.gms.auth.api.phone.SmsRetriever
+import com.google.android.gms.tasks.Task
+import android.content.IntentFilter
 
-class ExpoSmsModule : Module() {
-  // Each module class must implement the definition function. The definition consists of components
-  // that describes the module's functionality and behavior.
-  // See https://docs.expo.dev/modules/module-api for more details about available components.
+class SmsModule : Module() {
   override fun definition() = ModuleDefinition {
-    // Sets the name of the module that JavaScript code will use to refer to the module. Takes a string as an argument.
-    // Can be inferred from module's class name, but it's recommended to set it explicitly for clarity.
-    // The module will be accessible from `requireNativeModule('ExpoSms')` in JavaScript.
     Name("ExpoSms")
 
-    // Sets constant properties on the module. Can take a dictionary or a closure that returns a dictionary.
-    Constants(
-      "PI" to Math.PI
-    )
+    Events("onOtpReceived")
 
-    // Defines event names that the module can send to JavaScript.
-    Events("onChange")
+    Function("startListening") {
+      val client = SmsRetriever.getClient(appContext.reactContext!!)
+      val task = client.startSmsRetriever()
 
-    // Defines a JavaScript synchronous function that runs the native code on the JavaScript thread.
-    Function("hello") {
-      "Hello world! 👋"
-    }
-
-    // Defines a JavaScript function that always returns a Promise and whose native code
-    // is by default dispatched on the different thread than the JavaScript runtime runs on.
-    AsyncFunction("setValueAsync") { value: String ->
-      // Send an event to JavaScript.
-      sendEvent("onChange", mapOf(
-        "value" to value
-      ))
-    }
-
-    // Enables the module to be used as a native view. Definition components that are accepted as part of
-    // the view definition: Prop, Events.
-    View(ExpoSmsView::class) {
-      // Defines a setter for the `url` prop.
-      Prop("url") { view: ExpoSmsView, url: URL ->
-        view.webView.loadUrl(url.toString())
+      task.addOnSuccessListener {
+        Log.d("ExpoSms", "SMS Retriever started")
       }
-      // Defines an event that the view can send to JavaScript.
-      Events("onLoad")
+
+      task.addOnFailureListener {
+        Log.e("ExpoSms", "Failed to start SMS Retriever", it)
+      }
+    }
+
+    OnCreate {
+      val receiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+          if (SmsRetriever.SMS_RETRIEVED_ACTION == intent?.action) {
+            val extras = intent.extras
+            val status = extras?.get(SmsRetriever.EXTRA_STATUS) as? Bundle
+            val message = extras.get(SmsRetriever.EXTRA_SMS_MESSAGE) as? String
+
+            message?.let {
+              val otp = Regex("\\d{4,6}").find(it)?.value
+              otp?.let {
+                sendEvent("onOtpReceived", mapOf("otp" to it))
+              }
+            }
+          }
+        }
+      }
+
+      val filter = IntentFilter(SmsRetriever.SMS_RETRIEVED_ACTION)
+      appContext.reactContext?.registerReceiver(receiver, filter)
     }
   }
 }
