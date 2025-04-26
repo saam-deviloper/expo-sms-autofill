@@ -1,18 +1,13 @@
 package expo.modules.sms
 
-import android.content.*
-import android.os.Bundle
-import android.util.Log
-import com.facebook.react.bridge.*
-import expo.modules.kotlin.modules.*
-import expo.modules.kotlin.types.*
-import android.app.Activity
-import android.app.PendingIntent
-import com.google.android.gms.auth.api.phone.SmsRetriever
-import com.google.android.gms.tasks.Task
 import android.content.IntentFilter
+import com.google.android.gms.auth.api.phone.SmsRetriever
+import expo.modules.kotlin.modules.Module
+import expo.modules.kotlin.modules.ModuleDefinition
 
 class SmsModule : Module() {
+  private var otpReceiver: OtpReceiver? = null
+
   override fun definition() = ModuleDefinition {
     Name("ExpoSms")
 
@@ -20,37 +15,19 @@ class SmsModule : Module() {
 
     Function("startListening") {
       val client = SmsRetriever.getClient(appContext.reactContext!!)
-      val task = client.startSmsRetriever()
-
-      task.addOnSuccessListener {
-        Log.d("ExpoSms", "SMS Retriever started")
-      }
-
-      task.addOnFailureListener {
-        Log.e("ExpoSms", "Failed to start SMS Retriever", it)
-      }
+      client.startSmsRetriever()
     }
 
     OnCreate {
-      val receiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-          if (SmsRetriever.SMS_RETRIEVED_ACTION == intent?.action) {
-            val extras = intent.extras
-            val status = extras?.get(SmsRetriever.EXTRA_STATUS) as? Bundle
-            val message = extras.get(SmsRetriever.EXTRA_SMS_MESSAGE) as? String
-
-            message?.let {
-              val otp = Regex("\\d{4,6}").find(it)?.value
-              otp?.let {
-                sendEvent("onOtpReceived", mapOf("otp" to it))
-              }
-            }
-          }
-        }
-      }
-
+      otpReceiver = OtpReceiver(this)
       val filter = IntentFilter(SmsRetriever.SMS_RETRIEVED_ACTION)
-      appContext.reactContext?.registerReceiver(receiver, filter)
+      appContext.reactContext?.registerReceiver(otpReceiver, filter)
+    }
+
+    OnDestroy {
+      otpReceiver?.let {
+        appContext.reactContext?.unregisterReceiver(it)
+      }
     }
   }
 }
