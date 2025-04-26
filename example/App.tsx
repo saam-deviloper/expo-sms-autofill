@@ -1,73 +1,33 @@
-import { useEvent } from 'expo';
-import ExpoSms, { ExpoSmsView } from 'expo-sms';
-import { Button, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { SafeAreaView, Text, Button } from 'react-native';
+import { NativeModules, NativeEventEmitter } from 'react-native';
+
+const { ExpoSms } = NativeModules;
+const smsEmitter = new NativeEventEmitter(ExpoSms);
 
 export default function App() {
-  const onChangePayload = useEvent(ExpoSms, 'onChange');
+  const [otp, setOtp] = useState<string | null>(null);
+
+  const startListening = () => {
+    ExpoSms.startListening();
+  };
+
+  const addOtpListener = (callback: ({ otp }: { otp: string }) => void) => {
+    return smsEmitter.addListener('onOtpReceived', callback);
+  };
+
+  useEffect(() => {
+    startListening();
+    const subscription = addOtpListener(({ otp }) => {
+      setOtp(otp);
+    });
+    return () => subscription.remove();
+  }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.container}>
-        <Text style={styles.header}>Module API Example</Text>
-        <Group name="Constants">
-          <Text>{ExpoSms.PI}</Text>
-        </Group>
-        <Group name="Functions">
-          <Text>{ExpoSms.hello()}</Text>
-        </Group>
-        <Group name="Async functions">
-          <Button
-            title="Set value"
-            onPress={async () => {
-              await ExpoSms.setValueAsync('Hello from JS!');
-            }}
-          />
-        </Group>
-        <Group name="Events">
-          <Text>{onChangePayload?.value}</Text>
-        </Group>
-        <Group name="Views">
-          <ExpoSmsView
-            url="https://www.example.com"
-            onLoad={({ nativeEvent: { url } }) => console.log(`Loaded: ${url}`)}
-            style={styles.view}
-          />
-        </Group>
-      </ScrollView>
+    <SafeAreaView style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <Text style={{ fontSize: 20 }}>OTP: {otp ?? 'Waiting...'}</Text>
+      <Button title="Trigger Native Test" onPress={() => console.log('Just a test')} />
     </SafeAreaView>
   );
 }
-
-function Group(props: { name: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.group}>
-      <Text style={styles.groupHeader}>{props.name}</Text>
-      {props.children}
-    </View>
-  );
-}
-
-const styles = {
-  header: {
-    fontSize: 30,
-    margin: 20,
-  },
-  groupHeader: {
-    fontSize: 20,
-    marginBottom: 20,
-  },
-  group: {
-    margin: 20,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 20,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: '#eee',
-  },
-  view: {
-    flex: 1,
-    height: 200,
-  },
-};

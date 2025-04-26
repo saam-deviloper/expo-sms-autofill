@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="expo.modules.sms">
 
+  <uses-permission android:name="android.permission.RECEIVE_SMS" />
+  <uses-permission android:name="android.permission.READ_SMS" />
+
   <application>
     <receiver
         android:name="expo.modules.sms.OtpReceiver"
@@ -11,5 +14,4 @@
       </intent-filter>
     </receiver>
   </application>
-
 </manifest>
